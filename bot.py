@@ -1,55 +1,63 @@
-import logging
-from telegram import Update, ChatPermissions
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-import sqlite3
-import config
+import os
+from flask import Flask, request
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+TOKEN = os.getenv("BOT_TOKEN", "TON_TOKEN_ICI")  # Remplace si besoin
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://tonapp.onrender.com/webhook")  # Change après déploiement
 
-# Connexion à la base SQLite
-conn = sqlite3.connect('database.db', check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS members (id INTEGER PRIMARY KEY, username TEXT)")
-conn.commit()
+app = Flask(__name__)
 
+application = Application.builder().token(TOKEN).build()
+
+
+# --- Commandes du bot ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    cursor.execute("INSERT OR IGNORE INTO members (id, username) VALUES (?,?)", (user.id, user.username))
-    conn.commit()
-    welcome_text = (
-    f"👋 Bienvenue {user.mention_html()} dans Business Chine - Alibaba & Shein Pro !\n\n"
-    f"📘 Télécharge ton guide ici : [Guide PDF](https://example.com/guide.pdf)\n"
-    f"📆 Planning : /planning\n❓ FAQ : /faq"
-)
+    await update.message.reply_text("👋 Bienvenue sur Business Chine !\nTape /help pour commencer.")
 
-async def guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📘 Voici ton guide PDF : https://example.com/guide.pdf")
 
-async def planning(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📆 Prochaine session : Samedi à 20h sur Zoom")
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📘 Commandes disponibles :\n/start - Démarrer\n/help - Aide")
 
-async def faq(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❓ FAQ : \n1. Comment trouver un fournisseur fiable ?\n2. Comment éviter les arnaques Alibaba ?")
 
-async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📩 Contacte l'admin : @ChinaAdmin")
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"Vous avez dit : {update.message.text}")
 
-async def anti_spam(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if "http" in update.message.text.lower():
-        await update.message.delete()
 
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(config.TOKEN).build()
+# --- Handlers ---
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("help", help_command))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("guide", guide))
-    app.add_handler(CommandHandler("planning", planning))
-    app.add_handler(CommandHandler("faq", faq))
-    app.add_handler(CommandHandler("contact", contact))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), anti_spam))
 
-    print("🤖 Bot démarré...")
-    app.run_polling()
+# --- Webhook Flask ---
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    application.update_queue.put_nowait(update)
+    return "OK", 200
+
+
+# --- Point de test ---
+@app.route('/')
+def home():
+    return "Bot en ligne ✅", 200
+
+
+if name == '__main__':
+    # Démarre le serveur Flask
+    port = int(os.environ.get("PORT", 5000))
+    print(f"✅ Serveur en ligne sur le port {port}")
+
+    # Configure le webhook
+    import asyncio
+    from telegram import Bot
+
+    async def set_webhook():
+        bot = Bot(token=TOKEN)
+        await bot.delete_webhook()
+        await bot.set_webhook(url=WEBHOOK_URL)
+
+    asyncio.run(set_webhook())
+
+    app.run(host='0.0.0.0', port=port)
