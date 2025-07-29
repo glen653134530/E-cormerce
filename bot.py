@@ -19,8 +19,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     cursor.execute("INSERT OR IGNORE INTO members (id, username) VALUES (?,?)", (user.id, user.username))
     conn.commit()
-    welcome_text = f"👋 Bienvenue {user.mention_html()} dans Business Chine - Alibaba & Shein Pro !\n\n" \                   f"📘 Télécharge ton guide ici : [Guide PDF](https://example.com/guide.pdf)\n" \                   f"📆 Planning : /planning\n❓ FAQ : /faq"
-    await update.message.reply_html(welcome_text, disable_web_page_preview=True)
+    welcome_text = (
+    f"👋 Bienvenue {user.mention_html()} dans Business Chine - Alibaba & Shein Pro !\n\n"
+    f"📘 Télécharge ton guide ici : [Guide PDF](https://example.com/guide.pdf)\n"
+    f"📆 Planning : /planning\n❓ FAQ : /faq"
+)
 
 async def guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📘 Voici ton guide PDF : https://example.com/guide.pdf")
